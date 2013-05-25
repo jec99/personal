@@ -1,0 +1,135 @@
+Paper by Ullmann
+
+A simple enumeration for subgraph isomorphism
+G = (V, E), H = (V', E'), adjacency matrices A, B
+	|V| = p, |V'| = q
+
+define M to b a p x q matrix with 1's and 0's
+	each row has one 1
+	each column has at most one 1
+		note we take p <= q for this to be possible
+
+M can permute the rows and colums of B to produce C = M(MB)' = MB'M'
+	where ' denotes transpose
+	if
+		for all i, j, (a.ij = 1) => (c.ij = 1)														(1)
+	then M specifies an isomorphism between G and a subgraph of H
+		if m.ij = 1, then the V'.j corresponds to V.i
+
+Algorithm Spec
+	1: construct M_0 s.t. M_0.ij = 1 if degree (V'.j) >= degree (V.i), 0 otherwise
+		 Remark: if we do not wish V'.j to correspond to V.i, set m_0.ij = 0
+	2: generate all possible matrices M' s.t. (M'.ij = 1) => (M_0.ij = 1), and test 		 each M' using condition (1).
+		 2.a: systematically change all but one of the 1's to 0's in the rows of M_0 				 subject to the condition that no column can contain more than one 1.
+		 2.b: using a search tree the terminal nodes are at depth d = p (as the matrix 			 has p rows to change) where depth d < p denotes having changed the 1's in 			d columns to 0's in some systematic way.
+	We use a q-bit binary vector F to record which columns have been used at an intermediate state, and a p-length vector H to record which of the k columns has been selected at which depth (as there are p depth stages).
+
+Algorithm
+1:	M := M_0, d := 1, H_1 := 0
+		for all i in [1..p] F.i := 0
+2:	if there does not exist j s.t. M.dj = 1 and F.j = 0 then goto 7:
+		M_d := M
+		if d = 1 then k := H_1 else k := 0
+3:	k := k + 1
+		if M.dk = 0 or F.k = 1 then goto 3:
+		for all j /= k M.dj := 0
+4:	if d < p then goto 6: else use (1) to output if an isomorphism is found
+5:	if there does not exist j >  k s.t. M.dj = 1 and F.j = 0 then goto 7:
+		M := M_d
+		goto 3:
+6:	H.d := k, F.k := 1, d := d + 1
+		goto 2:
+7:	if d = 1 then terminate
+		F.k := 0, d := d - 1, M := M_d, k := H.d
+		goto 5:
+
+Algorithm using a refinement procedure
+how it works: consider a matrix M that is associated with some nonterminal node in the search tree above.
+	any isomorphism M' is a terminal node, and thus is located below some M in the search tree.
+	we say M' is an isomorphism under M if M' is a successor of M
+		what the zeroes in M do is preclude correspondences between elements of V and elements of V'. f M'.ij = 0 for all isomorphisms M' under M, then if M.ij = 1 we can change M.ij = 1 to M.ij = 0 without losing isomorphisms under M.
+
+		necessary condition for M'.ij = 1 for all M' under M: working it out.
+			v.i in V u.j in V', let [v.i_1..v.i_l] = set of neighbors of v.i, M' under M.
+			if v.i -> v.j under isomorphism M', for all 1 <= x <= l there is v.j_y corresponding to v.i_x, v.j_y adjacent to v.j - thus M'.(v.i_x, v.j_y) = 1.
+			so if v.i corresponds to v.j under any M', then for all x in [1..l] there is a 1 in M' corresponding to (v.i_x, v.j_y) such that v.j_y is adnacent to v.j, in other words if v.i -> v.j under M' then if 1..x..p
+
+				(A.ix = 1) => there is 1..y..q s.t. (M.xy * B.yj = 1)  							 (2)
+
+		the refinement procedure tests each 1 in M to find out whether (2) is satisfied, and if not we change it to a 0.
+			as this may cause other 1's not to be satisfied under (2) the refinement procedure applies (2) to all 1's in M until all 1's are processed and none are changed.
+
+			if the refinement procedure leaves M intact then M is an isomorphism from G to a subgraph of H because if nothing is changed then (2) holds for every 1 in M so M is 1-to-1.
+
+Algorithm
+1:	M := M_0, d := 1, H.1 := 0
+		for all 1..i..p F.i := 0
+		refine M, if exit FAIL then terminate
+2:	if there is no j s.t. M.dj = 1, F.j = 0 then goto 7:
+		M_d := M
+		if d = 1 then k := H.1 else k := 0
+3:	k := k + 1
+		if M.dk = 0 or F.k = 1 then goto 3:
+		for all j /= k M.dj := 0
+		refine M, if exit FAIL then goto 5:
+4:	if d < p then goto 6: else use (1) to output if an isomorphism is found
+5:	if there does not exist j >  k s.t. M.dj = 1 and F.j = 0 then goto 7:
+		M := M_d
+		goto 3:
+6:	H.d := k, F.k := 1, d := d + 1
+		goto 2:
+7:	if d = 1 then terminate
+		F.k := 0, d := d - 1, M := M_d, k := H.d
+		goto 5:
+
+Modified for Digraphs
+let digraphs G = (V, E), G' = (V', E'), |V| = p, |V'| = q
+	construct M_0 s.t. M_0.ij = 1 if degree V.i = degree V'.j, 0 otherwise
+		where degree equality means indegree equality and outdegree equality
+
+	refinement procedure: M.ij = 1 is changed to M.ij = 0 unless for 1..x..p
+
+		(A.ix = 1) => there is 1..y..q s.t. (M.xy * B.jy = 1) and
+		(A.xi = 1) => there is 1..y..q s.t. (M.xy * B.yj = 1)
+
+The Refinement Procedure, legitimate (an implementation of (2))
+	h, i, j, k, x positive integers.
+	elim is an integer whose value is the number of 1's that have been eliminated so 		far in the current iteration
+	deg.i is degree V.i
+	lst is the list of points adjacent to V.i
+	sc is a word that contains one 1, used for scanning
+	A.i contains the ith row of A,
+	B.j contains the jth column of B,
+	M.i contains the ith row of M
+	&, not mean bitwise operations
+
+1:	elim := 0
+		i := 1
+2:	k :+ 1
+		sc := 2 ^ (p - 1)
+		h := 1
+3:	if sc & A.i = 0 then goto 4:
+		lst.k := h
+		k := k + 1
+4:	sc := sc * 2 ^ (-i)
+		h := h + 1
+		if k /= deg.i + 1 then goto 3:
+5:	j := 1
+		sc := 2 ^ (q - 1)
+6:	if M.i & sc = 0 then goto 9:
+		h := 1
+7:	x := lst.h
+		if M.x & B.j = 0 then goto 8:
+		h :+ h + 1
+		if h /= deg.i + 1 then goto 7: else goto 9:
+8:	M.i := M.i & not sx
+		elim := elim + 1
+		h := h + 1
+9:	sc := sx * 2 ^ (-i)
+		j := j + 1
+		if j /= q + 1 then goto 6:
+10: if M.i = 0 then goto FAIL exit
+		i := i + 1
+		if i /= p + 1 then goto 2:
+		if slim /= 0 then goto 1:
+		goto SUCCEED exit

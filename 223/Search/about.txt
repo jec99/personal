@@ -1,0 +1,1 @@
+This is an implementation of A* search, given a function that acts as a grid.
